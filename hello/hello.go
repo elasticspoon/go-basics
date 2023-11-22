@@ -22,4 +22,5 @@ func main() {
 	for _, message := range messages {
 		fmt.Println(reverse.String(message))
 	}
+	fmt.Println(reverse.String("hello"), reverse.Int(24601))
 }
