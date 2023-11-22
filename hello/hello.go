@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"example.com/greetings"
+	"golang.org/x/example/hello/reverse"
 )
 
 func main() {
@@ -18,5 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(messages)
+	for _, message := range messages {
+		fmt.Println(reverse.String(message))
+	}
 }
