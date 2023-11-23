@@ -1,6 +1,7 @@
 go 1.21.3
 
 use (
+	./data-access
 	./example/hello
 	./hello
 )
