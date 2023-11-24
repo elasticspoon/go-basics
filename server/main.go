@@ -1,9 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
+
+	"example/data-access/database"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -20,6 +26,8 @@ type Albums struct {
 	albums []album
 }
 
+var albums *database.Albums
+
 func NewAlbums() *Albums {
 	return &Albums{
 		albums: []album{
@@ -29,8 +37,6 @@ func NewAlbums() *Albums {
 		},
 	}
 }
-
-var albums = NewAlbums()
 
 func (a *Albums) getAlbums() *[]album {
 	return &a.albums
@@ -58,7 +64,10 @@ func (a *Albums) createAlbum(newAlbum album) {
 }
 
 func getAlbums(w http.ResponseWriter, r *http.Request) {
-	albs := albums.getAlbums()
+	albs, err := albums.All()
+	if err != nil {
+		log.Printf("Error getting albums: %v", err)
+	}
 	bytes, err := json.Marshal(albs)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -70,27 +79,39 @@ func getAlbums(w http.ResponseWriter, r *http.Request) {
 func postAlbums(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var newAlbum album
+	var newAlbum database.Album
 	err := json.NewDecoder(r.Body).Decode(&newAlbum)
 	if err != nil {
 		log.Printf("Error decoding album: %v", err)
 	}
 
-	albums.createAlbum(newAlbum)
+	albums.Add(newAlbum)
 }
 
 func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	albumID := chi.URLParam(r, "albumID")
-	albums.deleteAlbum(albumID)
+
+	id, err := strconv.Atoi(albumID)
+	if err != nil {
+		log.Printf("Error converting albumID to int: %v", err)
+	}
+
+	albums.Delete(id)
 }
 
 func getAlbum(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	albumID := chi.URLParam(r, "albumID")
 
-	album := albums.getAlbum(albumID)
-	if album == nil {
+	id, err := strconv.Atoi(albumID)
+	if err != nil {
+		log.Printf("Error converting albumID to int: %v", err)
+	}
+
+	album, err := albums.AlbumByID(id)
+	if err != nil {
+		log.Printf("Error getting album by ID: %v", err)
 		return
 	}
 
@@ -102,6 +123,25 @@ func getAlbum(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	os.Remove("./recordings.db")
+
+	log.Println("Creating database...")
+	db, err := sql.Open("sqlite3", "./recordings.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		fmt.Println("ping error")
+
+		log.Fatal(err)
+	}
+
+	fmt.Println("Successfully connected!")
+
+	albums = database.NewAlbums(db)
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)

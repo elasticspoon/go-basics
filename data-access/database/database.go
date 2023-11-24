@@ -95,11 +95,48 @@ func (a *Albums) AlbumByID(id int) (Album, error) {
 	return alb, nil
 }
 
+func (a *Albums) All() ([]Album, error) {
+	db := a.db
+	var albums []Album
+	rows, err := db.Query("SELECT * FROM album;")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("allAlbums: no albums found")
+		}
+		return nil, fmt.Errorf("allAlbums: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var alb Album
+		var price int
+		if err := rows.Scan(&alb.ID, &alb.Title, &alb.Artist, &price); err != nil {
+			return nil, fmt.Errorf("allAlbums: %v", err)
+		}
+		alb.Price = float32(price) / 100
+		albums = append(albums, alb)
+	}
+	return albums, nil
+}
+
+func (a *Albums) Delete(id int) error {
+	stmt, err := a.db.Prepare("DELETE FROM album WHERE id = ?;")
+	if err != nil {
+		return fmt.Errorf("deleteAlbum: %v", err)
+	}
+
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return fmt.Errorf("deleteAlbum: %v", err)
+	}
+
+	return nil
+}
+
 type Album struct {
-	Title  string
-	Artist string
-	Price  float32
-	ID     int
+	Title  string  `json:"title"`
+	Artist string  `json:"artist"`
+	Price  float32 `json:"price,string"`
+	ID     int     `json:"id"`
 }
 
 func (alb *Album) String() string {
