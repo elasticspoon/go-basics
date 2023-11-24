@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -15,55 +16,20 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-type album struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Artist string `json:"artist"`
-	Price  string `json:"price"`
-}
-
-type Albums struct {
-	albums []album
-}
-
 var albums *database.Albums
 
-func NewAlbums() *Albums {
-	return &Albums{
-		albums: []album{
-			{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: "56.99"},
-			{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: "17.99"},
-			{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: "39.99"},
-		},
-	}
+func getAlbums(w http.ResponseWriter, _ *http.Request) {
+	albs, err := albums.All()
+	catch(err)
+
+	w.Header().Set("Content-Type", "text/html")
+	t, err := template.ParseFiles("templates/base.html", "templates/index.html")
+	catch(err)
+	err = t.Execute(w, albs)
+	catch(err)
 }
 
-func (a *Albums) getAlbums() *[]album {
-	return &a.albums
-}
-
-func (a *Albums) getAlbum(albumID string) *album {
-	for _, album := range a.albums {
-		if album.ID == albumID {
-			return &album
-		}
-	}
-	return nil
-}
-
-func (a *Albums) deleteAlbum(albumID string) {
-	for i, album := range a.albums {
-		if album.ID == albumID {
-			a.albums = append(a.albums[:i], a.albums[i+1:]...)
-		}
-	}
-}
-
-func (a *Albums) createAlbum(newAlbum album) {
-	a.albums = append(a.albums, newAlbum)
-}
-
-func getAlbums(w http.ResponseWriter, r *http.Request) {
+func getAlbumsApi(w http.ResponseWriter, _ *http.Request) {
 	albs, err := albums.All()
 	if err != nil {
 		log.Printf("Error getting albums: %v", err)
@@ -101,6 +67,23 @@ func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAlbum(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	albumID := chi.URLParam(r, "albumID")
+
+	id, err := strconv.Atoi(albumID)
+	catch(err)
+
+	album, err := albums.AlbumByID(id)
+	catch(err)
+
+	t, err := template.ParseFiles("templates/base.html", "templates/album.html")
+	catch(err)
+
+	err = t.Execute(w, album)
+	catch(err)
+}
+
+func getAlbumApi(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	albumID := chi.URLParam(r, "albumID")
 
@@ -120,6 +103,10 @@ func getAlbum(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.Write(bytes)
+}
+
+func showIndex(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Welcome home!")
 }
 
 func main() {
@@ -142,16 +129,25 @@ func main() {
 	fmt.Println("Successfully connected!")
 
 	albums = database.NewAlbums(db)
-	r := chi.NewRouter()
 
+	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
+
+	r.Get("/", showIndex)
 	r.Get("/albums", getAlbums)
+	// r.Get("/albums", getAlbumsApi)
 	r.Get("/albums/{albumID}", getAlbum)
 	r.Delete("/albums/{albumID}", deleteAlbum)
 	r.Post("/albums", postAlbums)
 
-	if err := http.ListenAndServe(":8080", r); err != http.ErrServerClosed {
-		// Error starting or closing listener:
-		log.Fatalf("HTTP server ListenAndServe: %v", err)
+	err = http.ListenAndServe(":8080", r)
+	catch(err)
+}
+
+func catch(err error) {
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
 	}
 }
