@@ -1,0 +1,11 @@
+{{define "form"}}
+<form action="/albums" method="post">
+  <label for="title">Title:</label>
+  <input type="text" name="title" value="{{.Title}}">
+  <label for="price">Price:</label>
+  <input type="number" name="price" value="{{.Price}}">
+  <label for="price">Artist:</label>
+  <input type="text" name="artist" value="{{.Artist}}">
+  <input type="submit" name="Submit" value="Submit">
+</form>
+{{end}}

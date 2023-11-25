@@ -1,8 +1,11 @@
 {{define "scripts"}}{{end}}
 {{define "body"}}
 <div>
-  Title: {{.Title}}
-  Artist: {{.Artist}}
-  Price: {{.Price}}
+  <ol>
+    <li>Title: {{.Title}}</li>
+    <li>Artist: {{.Artist}}</li>
+    <li>Price: {{.Price}}</li>
+  </ol>
 </div>
+<a href="/albums/{{.ID}}/edit">Edit Album Info</a>
 {{end}}
