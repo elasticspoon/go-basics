@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gorilla/websocket"
 )
 
 var albums *database.Albums
@@ -83,6 +84,20 @@ func getAlbum(w http.ResponseWriter, r *http.Request) {
 	catch(err)
 }
 
+func serverAlive(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	_, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		if _, ok := err.(websocket.HandshakeError); !ok {
+			log.Println(err)
+		}
+		catch(err)
+	}
+}
+
 func getAlbumApi(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	albumID := chi.URLParam(r, "albumID")
@@ -134,8 +149,12 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
 
+	r.Get("/livereload.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./js/livereload.js")
+	})
 	r.Get("/", showIndex)
 	r.Get("/albums", getAlbums)
+	r.Get("/alive", serverAlive)
 	// r.Get("/albums", getAlbumsApi)
 	r.Get("/albums/{albumID}", getAlbum)
 	r.Delete("/albums/{albumID}", deleteAlbum)
